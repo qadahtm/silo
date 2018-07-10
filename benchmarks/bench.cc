@@ -354,7 +354,7 @@ bench_runner::run()
     cerr << "--- perf counters (if enabled, for benchmark) ---" << endl;
     PERF_EXPR(scopedperf::perfsum_base::printall());
     cerr << "--- allocator stats ---" << endl;
-    ::allocator::DumpStats();
+    silo::allocator::DumpStats();
     cerr << "---------------------------------------" << endl;
 
 #ifdef USE_JEMALLOC

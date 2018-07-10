@@ -16,6 +16,8 @@
 #include "../spinbarrier.h"
 #include "../rcu.h"
 
+using namespace silo;
+
 struct persistconfig {
   persistconfig()
     : nofsync_(0), do_compress_(0), fake_writes_(0),

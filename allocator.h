@@ -10,6 +10,8 @@
 #include "macros.h"
 #include "spinlock.h"
 
+namespace silo{
+
 class allocator {
 public:
 
@@ -102,6 +104,13 @@ public:
     return sz;
   }
 
+    static uint64_t get_mem_address_start(){
+      return reinterpret_cast<uint64_t>(g_memstart);
+    }
+    static uint64_t get_mem_address_end(){
+      return reinterpret_cast<uint64_t>(g_memend);
+    }
+
 private:
   static size_t GetPageSizeImpl();
   static size_t GetHugepageSizeImpl();
@@ -143,5 +152,6 @@ private:
 
   static percore<regionctx> g_regions CACHE_ALIGNED;
 };
+}
 
 #endif /* _NDB_ALLOCATOR_H_ */

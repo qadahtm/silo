@@ -16,6 +16,7 @@
 
 using namespace std;
 using namespace util;
+using namespace silo;
 
 rcu rcu::s_instance;
 
@@ -24,8 +25,8 @@ static event_counter evt_rcu_frees("rcu_frees");
 static event_counter evt_rcu_local_reaps("rcu_local_reaps");
 static event_counter evt_rcu_incomplete_local_reaps("rcu_incomplete_local_reaps");
 static event_counter evt_rcu_loop_reaps("rcu_loop_reaps");
-static event_counter *evt_allocator_arena_allocations[::allocator::MAX_ARENAS] = {nullptr};
-static event_counter *evt_allocator_arena_deallocations[::allocator::MAX_ARENAS] = {nullptr};
+static event_counter *evt_allocator_arena_allocations[silo::allocator::MAX_ARENAS] = {nullptr};
+static event_counter *evt_allocator_arena_deallocations[silo::allocator::MAX_ARENAS] = {nullptr};
 static event_counter evt_allocator_large_allocation("allocator_large_allocation");
 
 static event_avg_counter evt_avg_gc_reaper_queue_len("avg_gc_reaper_queue_len");
@@ -44,14 +45,14 @@ report_error_and_die(
     const string &prefix="", unsigned recurse=3, bool first=true)
 {
   // print the entire allocation block, for debugging reference
-  static_assert(::allocator::AllocAlignment % 8 == 0, "xx");
+  static_assert(silo::allocator::AllocAlignment % 8 == 0, "xx");
   const void *pnext = *((const void **) p);
   cerr << prefix << "Address " << p << " error found! (next ptr " << pnext << ")" << endl;
   if (pnext) {
-    const ::allocator::pgmetadata *pmd = ::allocator::PointerToPgMetadata(pnext);
+    const silo::allocator::pgmetadata *pmd = silo::allocator::PointerToPgMetadata(pnext);
     if (!pmd) {
       cerr << prefix << "Error: could not get pgmetadata for next ptr" << endl;
-      cerr << prefix << "Allocator managed next ptr? " << ::allocator::ManagesPointer(pnext) << endl;
+      cerr << prefix << "Allocator managed next ptr? " << silo::allocator::ManagesPointer(pnext) << endl;
     } else {
       cerr << prefix << "Next ptr allocation size: " << pmd->unit_ << endl;
       if (((uintptr_t)pnext % pmd->unit_) == 0) {
@@ -103,12 +104,13 @@ check_pointer_or_die(void *p, size_t alloc_size)
 void *
 rcu::sync::alloc(size_t sz)
 {
-  if (pin_cpu_ == -1)
+  if (pin_cpu_ == -1){
     // fallback to regular allocator
     return malloc(sz);
-  auto sizes = ::allocator::ArenaSize(sz);
+  }
+  auto sizes = silo::allocator::ArenaSize(sz);
   auto arena = sizes.second;
-  if (arena >= ::allocator::MAX_ARENAS) {
+  if (arena >= silo::allocator::MAX_ARENAS) {
     // fallback to regular allocator
     ++evt_allocator_large_allocation;
     return malloc(sz);
@@ -117,7 +119,7 @@ rcu::sync::alloc(size_t sz)
   void *p = arenas_[arena];
   INVARIANT(p);
 #ifdef MEMCHECK_MAGIC
-  const size_t alloc_size = (arena + 1) * ::allocator::AllocAlignment;
+  const size_t alloc_size = (arena + 1) * silo::allocator::AllocAlignment;
   check_pointer_or_die(p, alloc_size);
 #endif
   arenas_[arena] = *reinterpret_cast<void **>(p);
@@ -131,22 +133,22 @@ rcu::sync::alloc_static(size_t sz)
   if (pin_cpu_ == -1)
     return malloc(sz);
   // round up to hugepagesize
-  static const size_t hugepgsize = ::allocator::GetHugepageSize();
+  static const size_t hugepgsize = silo::allocator::GetHugepageSize();
   sz = slow_round_up(sz, hugepgsize);
   INVARIANT((sz % hugepgsize) == 0);
-  return ::allocator::AllocateUnmanaged(pin_cpu_, sz / hugepgsize);
+  return silo::allocator::AllocateUnmanaged(pin_cpu_, sz / hugepgsize);
 }
 
 void
 rcu::sync::dealloc(void *p, size_t sz)
 {
-  if (!::allocator::ManagesPointer(p)) {
+  if (!silo::allocator::ManagesPointer(p)) {
     ::free(p);
     return;
   }
-  auto sizes = ::allocator::ArenaSize(sz);
+  auto sizes = silo::allocator::ArenaSize(sz);
   auto arena = sizes.second;
-  ALWAYS_ASSERT(arena < ::allocator::MAX_ARENAS);
+  ALWAYS_ASSERT(arena < silo::allocator::MAX_ARENAS);
   *reinterpret_cast<void **>(p) = arenas_[arena];
 #ifdef MEMCHECK_MAGIC
   const size_t alloc_size = (arena + 1) * ::allocator::AllocAlignment;
@@ -169,7 +171,7 @@ rcu::sync::try_release()
   static const size_t threshold = 10000;
   // only release if there are > threshold segments to release (over all arenas)
   size_t acc = 0;
-  for (size_t i = 0; i < ::allocator::MAX_ARENAS; i++)
+  for (size_t i = 0; i < silo::allocator::MAX_ARENAS; i++)
     acc += deallocs_[i];
   if (acc > threshold) {
     do_release();
@@ -183,8 +185,8 @@ void
 rcu::sync::do_release()
 {
 #ifdef MEMCHECK_MAGIC
-  for (size_t i = 0; i < ::allocator::MAX_ARENAS; i++) {
-    const size_t alloc_size = (i + 1) * ::allocator::AllocAlignment;
+  for (size_t i = 0; i < silo::allocator::MAX_ARENAS; i++) {
+    const size_t alloc_size = (i + 1) * silo::allocator::AllocAlignment;
     void *p = arenas_[i];
     while (p) {
       check_pointer_or_die(p, alloc_size);
@@ -192,7 +194,7 @@ rcu::sync::do_release()
     }
   }
 #endif
-  ::allocator::ReleaseArenas(&arenas_[0]);
+  silo::allocator::ReleaseArenas(&arenas_[0]);
   NDB_MEMSET(&arenas_[0], 0, sizeof(arenas_));
   NDB_MEMSET(&deallocs_[0], 0, sizeof(deallocs_));
 }
@@ -302,7 +304,7 @@ rcu::fault_region()
   sync &s = mysync();
   if (s.get_pin_cpu() == -1)
     return;
-  ::allocator::FaultRegion(s.get_pin_cpu());
+  silo::allocator::FaultRegion(s.get_pin_cpu());
 }
 
 rcu::rcu()
@@ -310,7 +312,7 @@ rcu::rcu()
 {
   // XXX: these should really be instance members of RCU
   // we are assuming only one rcu object is ever created
-  for (size_t i = 0; i < ::allocator::MAX_ARENAS; i++) {
+  for (size_t i = 0; i < silo::allocator::MAX_ARENAS; i++) {
     evt_allocator_arena_allocations[i] =
       new event_counter("allocator_arena" + to_string(i) + "_allocation");
     evt_allocator_arena_deallocations[i] =

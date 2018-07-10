@@ -12,7 +12,7 @@
 #include "rcu.h"
 #include "util.h"
 #include "counter.h"
-
+using namespace silo;
 /**
  * Not-really-immutable string, for perf reasons. Also can use
  * RCU for GC

@@ -12,6 +12,7 @@
 #include "counter.h"
 
 using namespace util;
+using namespace silo;
 
 static event_counter evt_allocator_total_region_usage(
     "allocator_total_region_usage_bytes");
@@ -101,10 +102,11 @@ allocator::Initialize(size_t ncpus, size_t maxpercore)
   // (this does not actually cause physical pages to be allocated)
   // note: we allocate an extra hugepgsize so we can guarantee alignment
   // of g_memstart to a huge page boundary
-
+    printf("allocating %lu bytes\n",g_ncpus * g_maxpercore + hugepgsize);
   void * const x = mmap(nullptr, g_ncpus * g_maxpercore + hugepgsize,
       PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0);
   if (x == MAP_FAILED) {
+    printf("errno:%d\n",errno);
     perror("mmap");
     ALWAYS_ASSERT(false);
   }

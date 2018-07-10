@@ -16,6 +16,8 @@
 #include "ticker.h"
 #include "pxqueue.h"
 
+namespace silo {
+
 class rcu {
   template <bool> friend class scoped_rcu_base;
 public:
@@ -326,8 +328,10 @@ private:
   unmanaged<ticker::guard> guard_;
 };
 
-typedef scoped_rcu_base<true> scoped_rcu_region;
+typedef silo::scoped_rcu_base<true> scoped_rcu_region;
 
 class disabled_rcu_region {};
+
+}
 
 #endif /* _RCU_H_ */

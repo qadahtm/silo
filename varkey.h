@@ -1,7 +1,9 @@
 #ifndef _NDB_VARKEY_H_
 #define _NDB_VARKEY_H_
 
+#ifndef __APPLE__
 #include <endian.h>
+#endif
 #include <stdint.h>
 #include <string.h>
 

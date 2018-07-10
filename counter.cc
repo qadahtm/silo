@@ -5,6 +5,7 @@
 using namespace std;
 using namespace util;
 using namespace private_;
+using namespace silo;
 
 map<string, event_ctx *> &
 event_ctx::event_counters()

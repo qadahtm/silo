@@ -2,7 +2,9 @@
 #pragma once
 
 #include <assert.h>
+#ifndef __APPLE__
 #include <malloc.h>
+#endif
 #include <pthread.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -33,6 +35,7 @@
 #include "masstree/timestamp.hh"
 #include "masstree/mtcounters.hh"
 #include "masstree/circular_int.hh"
+using namespace silo;
 
 class simple_threadinfo {
  public:
@@ -183,8 +186,8 @@ class mbtree {
   typedef typename P::value_type value_type;
   typedef typename P::threadinfo_type threadinfo;
   typedef typename std::conditional<!P::RcuRespCaller,
-      scoped_rcu_region,
-      disabled_rcu_region>::type rcu_region;
+      silo::scoped_rcu_region,
+      silo::disabled_rcu_region>::type rcu_region;
 
   // public to assist in testing
   static const unsigned int NKeysPerNode    = P::leaf_width;
@@ -234,7 +237,7 @@ public:
   }
 
   ~mbtree() {
-    rcu_region guard;
+    rcu_region UNUSED guard;
     threadinfo ti;
     table_.destroy(ti);
   }
@@ -243,7 +246,7 @@ public:
    * NOT THREAD SAFE
    */
   inline void clear() {
-    rcu_region guard;
+    rcu_region UNUSED guard;
     threadinfo ti;
     table_.destroy(ti);
     table_.initialize(ti);
@@ -516,7 +519,7 @@ mbtree<P>::leftmost_descend_layer(node_base_type *n)
 
 template <typename P>
 void mbtree<P>::tree_walk(tree_walk_callback &callback) const {
-  rcu_region guard;
+  rcu_region UNUSED guard;
   INVARIANT(rcu::s_instance.in_rcu_region());
   std::vector<node_base_type *> q, layers;
   q.push_back(table_.root());
@@ -600,7 +603,7 @@ template <typename P>
 inline bool mbtree<P>::search(const key_type &k, value_type &v,
                               versioned_node_t *search_info) const
 {
-  rcu_region guard;
+  rcu_region UNUSED guard;
   threadinfo ti;
   Masstree::unlocked_tcursor<P> lp(table_, k.data(), k.length());
   bool found = lp.find_unlocked(ti);
@@ -616,7 +619,7 @@ inline bool mbtree<P>::insert(const key_type &k, value_type v,
                               value_type *old_v,
                               insert_info_t *insert_info)
 {
-  rcu_region guard;
+  rcu_region UNUSED guard;
   threadinfo ti;
   Masstree::tcursor<P> lp(table_, k.data(), k.length());
   bool found = lp.find_insert(ti);
@@ -638,7 +641,7 @@ template <typename P>
 inline bool mbtree<P>::insert_if_absent(const key_type &k, value_type v,
                                         insert_info_t *insert_info)
 {
-  rcu_region guard;
+  rcu_region UNUSED guard;
   threadinfo ti;
   Masstree::tcursor<P> lp(table_, k.data(), k.length());
   bool found = lp.find_insert(ti);
@@ -660,7 +663,7 @@ inline bool mbtree<P>::insert_refcount(const key_type &k, value_type v,
                                        insert_info_t *insert_info)
 {
   //return insert_if_absent(k, v, insert_info);
-  rcu_region guard;
+  rcu_region UNUSED guard;
   threadinfo ti;
   Masstree::tcursor<P> lp(table_, k.data(), k.length());
   bool found = lp.find_insert(ti);
@@ -687,7 +690,7 @@ inline bool mbtree<P>::insert_refcount(const key_type &k, value_type v,
 template <typename P>
 inline bool mbtree<P>::remove(const key_type &k, value_type *old_v)
 {
-  rcu_region guard;
+  rcu_region UNUSED guard;
   threadinfo ti;
   Masstree::tcursor<P> lp(table_, k.data(), k.length());
   bool found = lp.find_locked(ti);
@@ -701,7 +704,7 @@ template <typename P>
 inline bool mbtree<P>::remove_refcount(const key_type &k, value_type *old_v)
 {
   //return remove(k, old_v);
-  rcu_region guard;
+  rcu_region UNUSED guard;
   threadinfo ti;
   Masstree::tcursor<P> lp(table_, k.data(), k.length());
   bool found = lp.find_locked(ti);

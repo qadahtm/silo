@@ -15,6 +15,8 @@
 #include "../spinbarrier.h"
 #include "../rcu.h"
 
+using namespace silo;
+
 extern void ycsb_do_test(abstract_db *db, int argc, char **argv);
 extern void tpcc_do_test(abstract_db *db, int argc, char **argv);
 extern void queue_do_test(abstract_db *db, int argc, char **argv);

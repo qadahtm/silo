@@ -23,6 +23,8 @@
 #include "prefetch.h"
 #include "ownership_checker.h"
 
+using namespace silo;
+
 // debugging tool
 //#define TUPLE_LOCK_OWNERSHIP_CHECKING
 

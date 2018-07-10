@@ -615,7 +615,7 @@ transaction_proto2_static::clean_up_to_including(threadctx &ctx, uint64_t ro_tic
       INVARIANT(!delent.tuple_ahead_);
       INVARIANT(delent.btr_);
       // check if an element preceeds the (deleted) tuple before doing the delete
-      ::lock_guard<dbtuple> lg_tuple(delent.tuple(), false);
+      silo::lock_guard<dbtuple> lg_tuple(delent.tuple(), false);
 #ifdef CHECK_INVARIANTS
       if (!delent.tuple()->is_not_behind(last_consistent_tid)) {
         cerr << "trigger tid     : " << g_proto_version_str(delent.trigger_tid_) << endl;
